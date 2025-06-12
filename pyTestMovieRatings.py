@@ -11,6 +11,15 @@ import pandas as pd
 #from urllib.parse import quote
 #from streamlit import column_config
 
+# Apply custom CSS to remove padding above the title
+st.markdown("""
+    <style>
+        .block-container {
+            padding-top: 0rem;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 ##tmdb_api_key = "847f394795bff258aa0e33dfbd9781d1"
 tmdb_api_key = st.secrets["tmdb_api_key"]
 def show_image(tmdbid, type, amount): #type movie or tv
@@ -65,7 +74,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown("""
-    
     <style>
         .hello {
             display: flex !important;
@@ -75,9 +83,6 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
-
-
-
 
 # Initialize session state variable for expander
 if 'expander_open' not in st.session_state:
@@ -766,7 +771,7 @@ def display_results2(type):
 
                     # Configure the 'Image' column to display images
                     column_config = {
-                        "Image": st.column_config.ImageColumn("Poster", width="medium", help="Movie poster")
+                        "Image": st.column_config.ImageColumn("Poster", width="small", help="Movie poster")
                     }
 
                     # Apply color only on Rating and Rating average columns
