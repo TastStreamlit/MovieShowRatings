@@ -7,15 +7,115 @@ import streamlit as st
 import requests
 import datetime
 import pandas as pd
+#import streamlit.components.v1 as components
+#from urllib.parse import quote
+#from streamlit import column_config
+
+##tmdb_api_key = "847f394795bff258aa0e33dfbd9781d1"
+tmdb_api_key = st.secrets["tmdb_api_key"]
+def show_image(tmdbid, type, amount): #type movie or tv
+    url = f"https://api.themoviedb.org/3/{type}/{tmdbid}/images"
+
+    headers = {
+        "accept": "application/json",
+        "Authorization": f"Bearer {tmdb_api_key}"
+    }
+
+    response = requests.get(url, headers=headers)
+
+    data_dict = response.json()
+
+    size = "w400"
+    prefix = f"https://image.tmdb.org/t/p/{size}"
+
+    if data_dict["backdrops"]:
+        file_path = data_dict["backdrops"][0]["file_path"]
+        completeImgURL = f'{prefix}{file_path}'
+
+        for backdrop in data_dict["backdrops"][:amount]:  # first 3 images
+            file_path = backdrop["file_path"]
+            completeImgURL = f'{prefix}{file_path}'
+
+            return completeImgURL
+            #st.image(completeImgURL)
+
+        #st.image(completeImgURL)
+    #else:
+    #    st.warning("No backdrop images found.")
+#st.divider()
+#completeImgURL = f'{prefix}{data_dict["backdrops"][0]["file_path"]}'
+#st.image(completeImgURL)
+
+
+# Inject custom CSS to override Streamlit's default column behavior
+st.markdown("""
+    <style>
+        /* Ensure columns stay side-by-side even on smaller screens */
+        @media (max-width: 640px) {
+            .stGrid {
+                display: flex !important;
+                flex-wrap: nowrap !important;  /* Prevent wrapping */
+                overflow-x: auto;  /* Enable horizontal scrolling if needed */
+            }
+            .stGrid > .stColumn {
+                flex: 1 1 50% !important;  /* Ensure columns share 50% width each */
+            }
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+    
+    <style>
+        .hello {
+            display: flex !important;
+            flex-wrap: nowrap !important;  /* Prevent wrapping */
+            overflow-x: auto;  /* Enable horizontal scrolling if needed */
+            flex: 1 1 50% !important;  /* Ensure columns share 50% width each */
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+
+
+
+# Initialize session state variable for expander
+if 'expander_open' not in st.session_state:
+    st.session_state.expander_open = False
 
 # Access the API key from Streamlit secrets
 api_key = st.secrets["api_key"]
 #mediatype = 'any' #movie / show / any
+gotRatings = False
 
+
+#BUTTON STYLE
+st.markdown("""
+    <style>
+    div.stButton > button {
+        font-size: 24px;
+        font-weight: bold;
+        height: 70px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+    <style>
+    div.stTextInput > div > input {
+        height: 70px;
+    }
+
+    /* Also adjust the container div to prevent cropping */
+    div.stTextInput > div {
+        height: 70px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 ###logos
 imdb_star = '''
-<div class="sc-f056af46-4 jxjtIa">
+<div class="hello" class="sc-f056af46-4 jxjtIa">
   <svg width="40px" height="40px" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
        class="ipc-icon ipc-icon--star sc-40b53d-4 ejeafU"
        viewBox="0 0 24 24" fill="#FFD700" role="presentation">
@@ -27,8 +127,6 @@ imdb_star = '''
   </svg>
 </div>
 '''
-
-
 imdb_nostar = '''
 <div class="sc-f056af46-4 jxjtIa">
   <svg width="40px" height="40px" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -42,7 +140,6 @@ imdb_nostar = '''
   </svg>
 </div>
 '''
-
 
 ###TOMATO critics
 full_tomato = '''
@@ -61,7 +158,6 @@ full_tomato = '''
     </svg>
 </span>
 '''
-
 splat_tomato = '''
 <span class="icon">
   <!--?xml version="1.0" encoding="UTF-8"?-->
@@ -77,9 +173,6 @@ splat_tomato = '''
   </svg>
 </span>
 '''
-
-
-
 faded_tomato = '''
 <span class="icon">
     <!--?xml version="1.0" encoding="UTF-8"?-->
@@ -96,7 +189,6 @@ faded_tomato = '''
     </svg>
 </span>
 '''
-
 fresh_tomato = '''
 <span class="icon">
     <!--?xml version="1.0" encoding="UTF-8"?-->
@@ -205,7 +297,6 @@ fresh_tomato = '''
 </span>
 '''
 
-
 ###BUCKET audience
 full_bucket = '''
 <span class="icon">
@@ -312,6 +403,8 @@ with st.sidebar:
         #ico = ":material/tv:"
 
     sort = st.toggle("Sort by rating")
+    wimages = st.toggle("Show images", True)
+    table = st.toggle("Show table")
 
     st.divider()
     st.write('''Score
@@ -349,7 +442,10 @@ When less than 60% of users give a movie or TV show a star rating of 3.5 or high
 No audience score yet.
 If a title has not released yet or there are not enough reviews to generate an Audience Score, a gray faded popcorn bucket is displayed."""
 )
-        
+    
+    st.header("ABOUT")
+    st.write("Images from TMDB")
+    st.write("This product uses the TMDB API but is not endorsed or certified by TMDB.")
 
     if st.button("Check API requests"):
         check_api_requests()
@@ -406,322 +502,102 @@ def color_rating(rating):
     b = 0
     return f"color: rgb({r}, {g}, {b})"
 
-def display_results():
+
+def display_results(type):
+    rtype = "movie"
+    if type == "Movies": rtype = "movie"
+    else: rtype = "tv"
+
     if st.session_state['movie_data']:
         movie_data = st.session_state['movie_data']
         
         if movie_data.get("search"):         
-            
             i = 0
             amount = st.empty()
             amount.markdown(i)
+
             for movie in movie_data['search']:
-                
                 if int(movie['score']) > 0:
                     amount.markdown(f"Found {i+1}/{movie_data['total']} results with available ratings (higher than 0%)")
-
-                    #tableData = [
-                    #    {'Client 1': 'https://www.merkgroningen.nl/nl/marketinggroningen', 'Client 2': 'https://www.aanzetcommunicatie.nl/', 'Team Size': '2', 'Platforms': 'Web'}
-                    #]
-                    #st.dataframe(tableData, column_config={
-                    #    'Live Link': st.column_config.LinkColumn(
-                    #        'Live Link', display_text='Link'
-                    #    ),
-                    #    'Client 1': st.column_config.LinkColumn(
-                    #        'Client 1', display_text="client1"
-                    #    ),
-                    #    'Client 2': st.column_config.LinkColumn(
-                    #        'Client 2', display_text="client2"
-                    #    )
-                    #}, use_container_width=True, hide_index=True)
-
-                    button_label = f"{movie['title']} ({movie['year']})"
-
-                    with st.container():
-                        colM1, colM2, colM3 = st.columns([0.5, 0.25, 0.25])
-                        with colM1:
-                            if st.button(button_label):
-                                imdbid = movie_data["search"][i]["ids"]["imdbid"]
-                                if imdbid:
-                                    with st.spinner("Searching..."):
-                                        ratings_imdb = get_ratings(imdbid, "imdb", api_key)   #trakt , imdb , tmdb , letterboxd , tomatoes , audience , metacritic , rogerebert , mal , score , score_average
-                                        if ratings_imdb and ratings_imdb["ratings"]:
-                                            colR1, colR2 = st.columns(2)
-
-                                            with colR1:
-                                                imdb_rating = ratings_imdb["ratings"][0]["rating"]
-                                                imdb_rating = int(imdb_rating * 10)
-                                                st.markdown(f'<p style="{color_rating(imdb_rating)}">IMDB Ratings: {imdb_rating}%</p>', unsafe_allow_html=True)
-                                            #if st.button("To IMDB"):
-                                                st.markdown(imdb_star, unsafe_allow_html=True)
-                                            with colR2:
-                                                url = f"https://www.imdb.com/title/{imdbid}"
-                                                st.markdown(f'<a href="{url}" target="_blank"><button style="padding:10px 20px;">Open in new tab</button></a>', unsafe_allow_html=True)
-
-                                        else:
-                                            st.write("IMDB Ratings: N/A")
-                                            st.markdown(imdb_nostar, unsafe_allow_html=True)
-                                tmdbid = movie_data["search"][i]["ids"]["tmdbid"]
-                                if tmdbid:
-                                    with st.spinner("Searching..."):
-                                        ratings_tmdb = get_ratings(tmdbid, "tomatoes", api_key)
-                                        if ratings_tmdb and ratings_tmdb["ratings"]:
-
-                                            colR1, colR2 = st.columns(2)
-
-                                            with colR1:
-                                                tomatoes_rating = ratings_tmdb["ratings"][0]["rating"]
-                                                st.markdown(f'<p style="{color_rating(tomatoes_rating)}">Tomatoes Ratings: {tomatoes_rating}%</p>', unsafe_allow_html=True)
-
-                                                if tomatoes_rating >= 75:
-                                                    st.markdown(fresh_tomato, unsafe_allow_html=True)
-                                                elif tomatoes_rating >= 60:
-                                                     st.markdown(full_tomato, unsafe_allow_html=True)
-                                                else:
-                                                    st.markdown(splat_tomato, unsafe_allow_html=True)
-                                            #mortv = "m" if mediatype == "movie" else "tv"
-                                            #url = f"https://www.rottentomatoes.com/{mortv}/{movie['title']}"
-                                            #import urllib.parse
-
-                                            #movie_title = "The Batman"
-                                            #query = urllib.parse.quote(movie_title)
-
-                                            with colR2:
-                                                url = f"https://www.rottentomatoes.com/search?search={movie['title']}"
-                                                st.markdown(f'<a href="{url}" target="_blank"><button style="padding:10px 20px;">Open in new tab</button></a>', unsafe_allow_html=True)
-
-                                        else:
-                                            st.write("Tomatoes Ratings: N/A")
-                                            st.markdown(faded_tomato, unsafe_allow_html=True)
-                                    with st.spinner("Searching..."):
-                                        ratings_tmdb2 = get_ratings(tmdbid, "audience", api_key)
-                                        if ratings_tmdb2 and ratings_tmdb2["ratings"]:
-                                            audience_rating = ratings_tmdb2["ratings"][0]["rating"]
-                                            st.markdown(f'<p style="{color_rating(audience_rating)}">Audience Ratings: {audience_rating}%</p>', unsafe_allow_html=True)
-                                        
-                                            if tomatoes_rating >= 90:
-                                                st.markdown(hot_bucket, unsafe_allow_html=True)
-                                            elif tomatoes_rating >= 60:
-                                                st.markdown(full_bucket, unsafe_allow_html=True)
-                                            else:
-                                                st.markdown(tipped_bucket, unsafe_allow_html=True)
-
-                                        else:
-                                            st.write("Audience Ratings: N/A")
-                                            st.markdown(empty_bucket, unsafe_allow_html=True)
-                                else:
-                                    st.error("No id found")
-
-                        with colM2:
-                            #rating_label = f"{movie['score']}%, Average: {movie['score_average']}%"
-                        
-                            score = movie['score']
-                            st.markdown(f'<p style="{color_rating(score)}">Ratings: {score}%</p>', unsafe_allow_html=True)
-
-                        with colM3:
-                            score_avg = movie['score_average']
-                            st.markdown(f'<p style="{color_rating(score_avg)}">Average: {score_avg}%</p>', unsafe_allow_html=True)
-
-
-                        st.divider()
-
-                i = i+1
-                #amount.markdown = i
-        else:
-            st.warning("No results found.")
-    else:
-        st.warning(f"Please search for {type}")
-
-def display_results2():
-    # Ensure movie data exists
-# Check if any row was selected
-
-
-    # Simulated movie data setup (replace this with your actual session data)
-    movie_data = st.session_state.get('movie_data', {})
-    search_results = movie_data.get("search", [])
-
-    # Filter out movies with a valid score
-    filtered_movies = [m for m in search_results if int(m.get("score", 0)) > 0]
-
-    if filtered_movies:
-        st.markdown(f"Found {len(filtered_movies)}/{movie_data['total']} results with available ratings (higher than 0%)")
-
-        # Create a DataFrame
-        df_display = pd.DataFrame([{
-            "Select": False,
-            "Title": f"{m['title']} ({m['year']})",
-            "Year": m['year'],
-            "Score": int(m['score']),
-            "Average": int(m['score_average']),
-            "IMDb ID": m['ids'].get("imdbid", ""),
-            "TMDb ID": m['ids'].get("tmdbid", ""),
-            "Raw Title": m['title']
-        } for m in filtered_movies])
-
-        # Show interactive editor
-        edited_df = st.data_editor(
-            df_display[["Select", "Title", "Year", "Score", "Average"]],
-            num_rows="dynamic",
-            use_container_width=True,
-            hide_index=True,
-            key="movie_editor"
-        )
-
-        # Identify selected row
-        selected_rows = edited_df[edited_df["Select"] == True]
-
-        if not selected_rows.empty:
-            selected_movie = df_display.loc[selected_rows.index[0]]
-
-            st.markdown(f"### Ratings for: {selected_movie['Title']}")
-
-            imdbid = selected_movie["IMDb ID"]
-            tmdbid = selected_movie["TMDb ID"]
-            movie_title = selected_movie["Raw Title"]
-
-            # Show color-graded scores
-            colS1, colS2 = st.columns(2)
-            with colS1:
-                st.markdown(f'<p style="{color_rating(selected_movie["Score"])}">Overall Score: {selected_movie["Score"]}%</p>', unsafe_allow_html=True)
-            with colS2:
-                st.markdown(f'<p style="{color_rating(selected_movie["Average"])}">Average Score: {selected_movie["Average"]}%</p>', unsafe_allow_html=True)
-
-            st.divider()
-
-            col1, col2 = st.columns(2)
-
-            # --- IMDb Ratings ---
-            with col1:
-                if imdbid:
-                    with st.spinner("Fetching IMDb ratings..."):
-                        ratings_imdb = get_ratings(imdbid, "imdb", api_key)
-                        if ratings_imdb and ratings_imdb.get("ratings"):
-                            imdb_rating = int(ratings_imdb["ratings"][0]["rating"] * 10)
-                            st.markdown(f'<p style="{color_rating(imdb_rating)}">IMDb Rating: {imdb_rating}%</p>', unsafe_allow_html=True)
-                            st.markdown(imdb_star, unsafe_allow_html=True)
-                            imdb_url = f"https://www.imdb.com/title/{imdbid}"
-                            st.markdown(f'<a href="{imdb_url}" target="_blank"><button>Open IMDb</button></a>', unsafe_allow_html=True)
-                        else:
-                            st.write("IMDb Rating: N/A")
-                            st.markdown(imdb_nostar, unsafe_allow_html=True)
-                else:
-                    st.warning("IMDb ID not available")
-
-            # --- Rotten Tomatoes Ratings ---
-            with col2:
-                if tmdbid:
-                    with st.spinner("Fetching Rotten Tomatoes ratings..."):
-                        ratings_tomatoes = get_ratings(tmdbid, "tomatoes", api_key)
-                        if ratings_tomatoes and ratings_tomatoes.get("ratings"):
-                            tomatoes_rating = int(ratings_tomatoes["ratings"][0]["rating"])
-                            st.markdown(f'<p style="{color_rating(tomatoes_rating)}">Tomatoes Rating: {tomatoes_rating}%</p>', unsafe_allow_html=True)
-                            if tomatoes_rating >= 75:
-                                st.markdown(fresh_tomato, unsafe_allow_html=True)
-                            elif tomatoes_rating >= 60:
-                                st.markdown(full_tomato, unsafe_allow_html=True)
-                            else:
-                                st.markdown(splat_tomato, unsafe_allow_html=True)
-                            tomato_url = f"https://www.rottentomatoes.com/search?search={movie_title}"
-                            st.markdown(f'<a href="{tomato_url}" target="_blank"><button>Open Tomatoes</button></a>', unsafe_allow_html=True)
-                        else:
-                            st.write("Tomatoes Rating: N/A")
-                            st.markdown(faded_tomato, unsafe_allow_html=True)
-                else:
-                    st.warning("TMDb ID not available")
-
-            # --- Audience Ratings ---
-            if tmdbid:
-                with st.spinner("Fetching Audience ratings..."):
-                    ratings_audience = get_ratings(tmdbid, "audience", api_key)
-                    if ratings_audience and ratings_audience.get("ratings"):
-                        audience_rating = int(ratings_audience["ratings"][0]["rating"])
-                        st.markdown(f'<p style="{color_rating(audience_rating)}">Audience Rating: {audience_rating}%</p>', unsafe_allow_html=True)
-                        if audience_rating >= 90:
-                            st.markdown(hot_bucket, unsafe_allow_html=True)
-                        elif audience_rating >= 60:
-                            st.markdown(full_bucket, unsafe_allow_html=True)
-                        else:
-                            st.markdown(tipped_bucket, unsafe_allow_html=True)
-                    else:
-                        st.write("Audience Rating: N/A")
-                        st.markdown(empty_bucket, unsafe_allow_html=True)
-
-        else:
-            st.info("Select a movie from the table above to view ratings.")
-
-    else:
-        st.warning("No results found with ratings > 0.")
-
-
-def display_results3():
-    if st.session_state['movie_data']:
-        movie_data = st.session_state['movie_data']
-        
-        if movie_data.get("search"):         
-            
-            i = 0
-            amount = st.empty()
-            amount.markdown(i)
-            for movie in movie_data['search']:
-                
-                if int(movie['score']) > 0:
-                    amount.markdown(f"Found {i+1}/{movie_data['total']} results with available ratings (higher than 0%)")
-
-                    #tableData = [
-                    #    {'Client 1': 'https://www.merkgroningen.nl/nl/marketinggroningen', 'Client 2': 'https://www.aanzetcommunicatie.nl/', 'Team Size': '2', 'Platforms': 'Web'}
-                    #]
-                    #st.dataframe(tableData, column_config={
-                    #    'Live Link': st.column_config.LinkColumn(
-                    #        'Live Link', display_text='Link'
-                    #    ),
-                    #    'Client 1': st.column_config.LinkColumn(
-                    #        'Client 1', display_text="client1"
-                    #    ),
-                    #    'Client 2': st.column_config.LinkColumn(
-                    #        'Client 2', display_text="client2"
-                    #    )
-                    #}, use_container_width=True, hide_index=True)
 
                     button_label = f"{movie['title']}"
-
-
 
                     ratings_imdb = ''
                     ratings_tmdb = ''
                     ratings_tmdb2 = ''
                     with st.container():
-                        colM1, colM2 = st.columns(2)
-                        with colM1:
-                            if st.button(button_label, use_container_width=True):
-                                imdbid = movie_data["search"][i]["ids"]["imdbid"]
-                                if imdbid:
-                                    with st.spinner("Searching..."):
-                                        ratings_imdb = get_ratings(imdbid, "imdb", api_key)   #trakt , imdb , tmdb , letterboxd , tomatoes , audience , metacritic , rogerebert , mal , score , score_average
-                                        
-                                tmdbid = movie_data["search"][i]["ids"]["tmdbid"]
-                                if tmdbid:
-                                    with st.spinner("Searching..."):
-                                        ratings_tmdb = get_ratings(tmdbid, "tomatoes", api_key)
-                                        
-                                    with st.spinner("Searching..."):
-                                        ratings_tmdb2 = get_ratings(tmdbid, "audience", api_key)
-                                        
-                                else:
-                                    st.error("No id found")
+                        if wimages:
+                            colM1, colM2, colM3 = st.columns(3)
 
-                        with colM2:
-                            tableData = [
-                                {'Year': movie['year'], 'Rating': movie['score'], 'Rating average': movie['score_average']}
-                            ]
+                            with colM1:
+                                st.image(show_image(movie_data["search"][i]["ids"]["tmdbid"], rtype, 1))
+                            
+                            with colM2:
+                                if st.button(button_label, use_container_width=True):
+                                    imdbid = movie_data["search"][i]["ids"]["imdbid"]
+                                    if imdbid:
+                                        with st.spinner("Searching..."):
+                                            ratings_imdb = get_ratings(imdbid, "imdb", api_key)   #trakt , imdb , tmdb , letterboxd , tomatoes , audience , metacritic , rogerebert , mal , score , score_average
+                                            
+                                    tmdbid = movie_data["search"][i]["ids"]["tmdbid"]
+                                    if tmdbid:
+                                        with st.spinner("Searching..."):
+                                            ratings_tmdb = get_ratings(tmdbid, "tomatoes", api_key)
+                                            
+                                        with st.spinner("Searching..."):
+                                            ratings_tmdb2 = get_ratings(tmdbid, "audience", api_key)
+                                            
+                                    else:
+                                        st.error("No id found")
 
-                            df = pd.DataFrame(tableData)
+                            with colM3:
+                                tableData = [
+                                    {'Year': movie['year'], 'Rating': movie['score'], 'Rating average': movie['score_average']}
+                                ]
 
-                            # Apply color only on Rating and Rating average columns
-                            styled_df = df.style.applymap(color_rating, subset=['Rating', 'Rating average'])
+                                df = pd.DataFrame(tableData)
 
-                            # Display with colors in Streamlit
-                            st.dataframe(styled_df, use_container_width=True, hide_index=True)
+                                # Apply color only on Rating and Rating average columns
+                                styled_df = df.style.map(color_rating, subset=['Rating', 'Rating average'])
+
+                                # Display with colors in Streamlit
+                                st.dataframe(styled_df, use_container_width=True, hide_index=True)
+                            
+                        else:
+                            colM1, colM2 = st.columns(2)
+
+                            with colM1:
+                                if st.button(button_label, use_container_width=True):
+                                    imdbid = movie_data["search"][i]["ids"]["imdbid"]
+                                    if imdbid:
+                                        with st.spinner("Searching..."):
+                                            ratings_imdb = get_ratings(imdbid, "imdb", api_key)   #trakt , imdb , tmdb , letterboxd , tomatoes , audience , metacritic , rogerebert , mal , score , score_average
+                                            
+                                    tmdbid = movie_data["search"][i]["ids"]["tmdbid"]
+                                    if tmdbid:
+                                        with st.spinner("Searching..."):
+                                            ratings_tmdb = get_ratings(tmdbid, "tomatoes", api_key)
+                                            
+                                        with st.spinner("Searching..."):
+                                            ratings_tmdb2 = get_ratings(tmdbid, "audience", api_key)
+                                            
+                                    else:
+                                        st.error("No id found")
+
+                            with colM2:
+                                tableData = [
+                                    {'Year': movie['year'], 'Rating': movie['score'], 'Rating average': movie['score_average']}
+                                ]
+
+                                df = pd.DataFrame(tableData)
+
+                                # Apply color only on Rating and Rating average columns
+                                styled_df = df.style.map(color_rating, subset=['Rating', 'Rating average'])
+
+                                # Display with colors in Streamlit
+                                st.dataframe(styled_df, use_container_width=True, hide_index=True)
+
+                       
 
                         ##DISPLAY IMDB
                         if ratings_imdb and ratings_imdb["ratings"]:
@@ -735,24 +611,23 @@ def display_results3():
                                     f'IMDB Ratings: {imdb_rating}%</p>', 
                                     unsafe_allow_html=True
                                 )
+
                             with colR2:
                                 st.markdown(imdb_star, unsafe_allow_html=True)
+
                             with colR3:
                                 url = f"https://www.imdb.com/title/{imdbid}"
                                 st.markdown(f'<a href="{url}" target="_blank"><button style="padding:10px 20px;">Open in new tab</button></a>', unsafe_allow_html=True)
 
                         elif ratings_imdb == '':
                             st.empty()
+
                         else:
                             st.write("IMDB Ratings: N/A")
                             st.markdown(imdb_nostar, unsafe_allow_html=True)
 
-
-
-
                         ##DISPLAY TOMATOES
                         if ratings_tmdb and ratings_tmdb["ratings"]:
-
                             colR1, colR2, colR3 = st.columns([0.5, 0.25, 0.25])
 
                             with colR1:
@@ -763,21 +638,13 @@ def display_results3():
                                     unsafe_allow_html=True
                                 )
 
-                                #st.markdown(f'<p style="{color_rating(tomatoes_rating)}">Tomatoes Ratings: {tomatoes_rating}%</p>', unsafe_allow_html=True)
-
                             with colR2:
                                 if tomatoes_rating >= 75:
                                     st.markdown(fresh_tomato, unsafe_allow_html=True)
                                 elif tomatoes_rating >= 60:
-                                        st.markdown(full_tomato, unsafe_allow_html=True)
+                                    st.markdown(full_tomato, unsafe_allow_html=True)
                                 else:
                                     st.markdown(splat_tomato, unsafe_allow_html=True)
-                            #mortv = "m" if mediatype == "movie" else "tv"
-                            #url = f"https://www.rottentomatoes.com/{mortv}/{movie['title']}"
-                            #import urllib.parse
-
-                            #movie_title = "The Batman"
-                            #query = urllib.parse.quote(movie_title)
 
                             with colR3:
                                 url = f"https://www.rottentomatoes.com/search?search={movie['title']}"
@@ -785,14 +652,12 @@ def display_results3():
 
                         elif ratings_tmdb == '':
                             st.empty()
+
                         else:
-                            st.write("Tomatoes Ratings: N/A")
+                            st.write("Tomatoes Critics: N/A")
                             st.markdown(faded_tomato, unsafe_allow_html=True)
 
-
-
                         if ratings_tmdb2 and ratings_tmdb2["ratings"]:
-
                             colR1, colR2, colR3 = st.columns([0.5, 0.25, 0.25])
 
                             with colR1:
@@ -802,7 +667,6 @@ def display_results3():
                                     f'Tomatoes Audience: {audience_rating}%</p>', 
                                     unsafe_allow_html=True
                                 )
-                                #st.markdown(f'<p style="{color_rating(audience_rating)}">Audience Ratings: {audience_rating}%</p>', unsafe_allow_html=True)
                         
                             with colR2:
                                 if tomatoes_rating >= 90:
@@ -814,23 +678,285 @@ def display_results3():
 
                         elif ratings_tmdb2 == '':
                             st.empty()
+
                         else:
-                            st.write("Audience Ratings: N/A")
+                            st.write("Tomatoes Audience: N/A")
                             st.markdown(empty_bucket, unsafe_allow_html=True)
 
                         st.divider()
 
                 i = i+1
-                #amount.markdown = i
         else:
             st.warning("No results found.")
     else:
         st.warning(f"Please search for {type}")
 
+
+def display_results2(type):
+    rtype = "movie"
+    if type == "Movies": rtype = "movie"
+    else: rtype = "tv"
+
+
+    #PLACEHOLDER STRUCTURE
+    #rate_container = st.container(border=True)  # Create a placeholder for ratings above the DataFrame
+    rate_container = st.expander("Ratings", expanded=st.session_state.expander_open)  # Create a placeholder for ratings above the DataFrame
+    #rate_container = st.empty()
+    global gotRatings
+    
+    
+    #rate_title = st.empty()
+    #rate_imdb = st.empty()
+    #rate_imdb_icon = st.empty()
+    #rate_imdb_link = st.empty()
+    #rate_tomato1 = st.empty()
+    #rate_tomato1_icon = st.empty()
+    #rate_tomato1_link = st.empty()
+    #rate_tomato2 = st.empty()
+    #rate_tomato2_icon = st.empty()
+
+    #if gotRatings:
+    with rate_container:
+        rate_title = st.empty()
+        colR1, colR2, colR3 = st.columns([0.15, 0.05, 0.15])
+        with colR1:
+            rate_imdb = st.empty()
+        with colR2:
+            rate_imdb_icon = st.empty()
+        with colR3:
+            rate_imdb_link = st.empty()
+
+        colR1, colR2, colR3 = st.columns([0.15, 0.05, 0.15])
+        with colR1:
+            rate_tomato1 = st.empty()
+        with colR2:
+            rate_tomato1_icon = st.empty()
+        with colR3:
+            rate_tomato1_link = st.empty()
+
+        colR1, colR2, colR3 = st.columns([0.15, 0.05, 0.15])
+        with colR1:
+            rate_tomato2 = st.empty()
+        with colR2:
+            rate_tomato2_icon = st.empty()
+
+    
+    if 'movie_data' in st.session_state:
+        movie_data = st.session_state.get('movie_data', {})
+
+        if movie_data:   
+            search_results = movie_data.get("search", [])
+
+            # Filter out movies with a valid score
+            filtered_movies = [m for m in search_results if int(m.get("score", 0)) > 0]
+
+            if filtered_movies:
+                st.markdown(f"Found {len(filtered_movies)}/{movie_data['total']} results with available ratings (higher than 0%)")
+
+                if wimages:
+                    # Create a DataFrame for the search results
+                    df_display = pd.DataFrame([{
+                        "Select": False,
+                        "Image": show_image(m["ids"]["tmdbid"], rtype, 1),
+                        "Title": f"{m['title']}",
+                        "Year": m['year'],
+                        "Score": int(m['score']),
+                        "Average": int(m['score_average'])
+                    } for m in filtered_movies])
+
+                    # Configure the 'Image' column to display images
+                    column_config = {
+                        "Image": st.column_config.ImageColumn("Poster", width="medium", help="Movie poster")
+                    }
+
+                    # Apply color only on Rating and Rating average columns
+                    styled_df = df_display.style.map(color_rating, subset=['Score', 'Average'])
+
+                    # Display with colors in Streamlit
+                    #st.dataframe(styled_df, use_container_width=True, hide_index=True)
+
+                    edited_df = st.data_editor(
+                        styled_df,
+                        column_config=column_config,
+                        use_container_width=True,
+                        hide_index=True,
+                        disabled=("Image", "Title", "Year", "Score", "Average"),
+                        key="movie_editor"
+                    )
+                else:
+                    # Create a DataFrame for the search results
+                    df_display = pd.DataFrame([{
+                        "Select": False,
+                        "Title": f"{m['title']}",
+                        "Year": m['year'],
+                        "Score": int(m['score']),
+                        "Average": int(m['score_average'])
+                    } for m in filtered_movies])
+
+                    # Apply color only on Rating and Rating average columns
+                    styled_df = df_display.style.map(color_rating, subset=['Score', 'Average'])
+
+                    # Display with colors in Streamlit
+                    #st.dataframe(styled_df, use_container_width=True, hide_index=True)
+
+                    edited_df = st.data_editor(
+                        styled_df,
+                        use_container_width=True,
+                        hide_index=True,
+                        disabled=("Title", "Year", "Score", "Average"),
+                        key="movie_editor"
+                    )
+
+                # Show interactive table (data editor)
+                #edited_df = st.data_editor(
+                #    df_display[["Select", "Title", "Year", "Score", "Average"]],
+                #    use_container_width=True,
+                #    hide_index=True,
+                #    disabled=("Title", "Year", "Score", "Average"),
+                #    key="movie_editor"
+                #)
+
+                # Identify selected row
+                selected_rows = edited_df[edited_df["Select"] == True]
+
+                if not selected_rows.empty:
+                    #global gotRatings
+                    gotRatings = True
+
+                    selected_index = selected_rows.index[0]
+                    selected_movie = df_display.loc[selected_rows.index[0]]
+
+                    imdbid = movie_data["search"][selected_index]["ids"]["imdbid"]
+                    tmdbid = movie_data["search"][selected_index]["ids"]["tmdbid"]
+                    movie_title = selected_movie['Title']
+
+                    
+                
+                    ratings_imdb = ''
+                    ratings_tmdb = ''
+                    ratings_tmdb2 = ''
+
+                    #with rate_container.container(border=True):  # Placeholder for dynamic content above the table
+                    # First display ratings above the table
+                    rate_title.markdown(f"### Ratings for: {movie_title}")
+                
+                    # Fetch ratings and handle errors gracefully
+                    if imdbid:
+                        with st.spinner("Fetching IMDb Ratings..."):
+                            st.toast("Fetching IMDb Ratings...")
+                            ratings_imdb = get_ratings(imdbid, "imdb", api_key)
+                    if tmdbid:
+                        with st.spinner("Fetching Rotten Tomatoes Critics Ratings..."):
+                            st.toast("Fetching Rotten Tomatoes Critics Ratings...")
+                            ratings_tmdb = get_ratings(tmdbid, "tomatoes", api_key)
+                        with st.spinner("Fetching Rotten Tomatoes Audience Ratings..."):
+                            st.toast("Fetching Rotten Tomatoes Audience Ratings...")
+                            ratings_tmdb2 = get_ratings(tmdbid, "audience", api_key)
+
+
+                        
+                    ##DISPLAY IMDB
+                    if ratings_imdb and ratings_imdb["ratings"]:
+                        colR1, colR2, colR3 = st.columns([0.33, 0.33, 0.33])
+
+                        with colR1:
+                            imdb_rating = ratings_imdb["ratings"][0]["rating"]
+                            imdb_rating = int(imdb_rating * 10)
+                            rate_imdb.markdown(
+                                f'<p class="hello" style="font-size:24px; {color_rating(imdb_rating)}">'
+                                f'IMDB: {imdb_rating}%</p>', 
+                                unsafe_allow_html=True
+                            )
+
+                        with colR2:
+                            rate_imdb_icon.markdown(imdb_star, unsafe_allow_html=True)
+
+                        with colR3:
+                            url = f"https://www.imdb.com/title/{imdbid}"
+                            rate_imdb_link.markdown(f'<a href="{url}" target="_blank"><button style="padding:10px 20px;">Open in new tab</button></a>', unsafe_allow_html=True)
+
+                    #elif ratings_imdb == '':
+                    #    st.empty()
+
+                    else:
+                        rate_imdb.write("IMDB: N/A")
+                        rate_imdb_icon.markdown(imdb_nostar, unsafe_allow_html=True)
+
+                    ##DISPLAY TOMATOES
+                    if ratings_tmdb and ratings_tmdb["ratings"]:
+                        colR1, colR2, colR3 = st.columns([0.33, 0.33, 0.33])
+
+                        with colR1:
+                            tomatoes_rating = ratings_tmdb["ratings"][0]["rating"]
+                            rate_tomato1.markdown(
+                                f'<p style="font-size:24px; {color_rating(tomatoes_rating)}">'
+                                f'🍅 Critics: {tomatoes_rating}%</p>', 
+                                unsafe_allow_html=True
+                            )
+
+                        with colR2:
+                            if tomatoes_rating >= 75:
+                                rate_tomato1_icon.markdown(fresh_tomato, unsafe_allow_html=True)
+                            elif tomatoes_rating >= 60:
+                                rate_tomato1_icon.markdown(full_tomato, unsafe_allow_html=True)
+                            else:
+                                rate_tomato1_icon.markdown(splat_tomato, unsafe_allow_html=True)
+
+                        with colR3:
+                            url = f"https://www.rottentomatoes.com/search?search={movie_title}"
+                            rate_tomato1_link.markdown(f'<a href="{url}" target="_blank"><button style="padding:10px 20px;">Open in new tab</button></a>', unsafe_allow_html=True)
+
+                        #elif ratings_tmdb == '':
+                        #    st.empty()
+
+                    else:
+                        rate_tomato1.write("🍅 Critics: N/A")
+                        rate_tomato1_icon.markdown(faded_tomato, unsafe_allow_html=True)
+
+                    if ratings_tmdb2 and ratings_tmdb2["ratings"]:
+                        colR1, colR2, colR3 = st.columns([0.33, 0.33, 0.33])
+
+                        with colR1:
+                            audience_rating = ratings_tmdb2["ratings"][0]["rating"]
+                            rate_tomato2.markdown(
+                                f'<p style="font-size:24px; {color_rating(audience_rating)}">'
+                                f'🍅 Audience: {audience_rating}%</p>', 
+                                unsafe_allow_html=True
+                            )
+                    
+                        with colR2:
+                            if audience_rating >= 90:
+                                rate_tomato2_icon.markdown(hot_bucket, unsafe_allow_html=True)
+                            elif audience_rating >= 60:
+                                rate_tomato2_icon.markdown(full_bucket, unsafe_allow_html=True)
+                            else:
+                                rate_tomato2_icon.markdown(tipped_bucket, unsafe_allow_html=True)
+
+                    #elif ratings_tmdb2 == '':
+                    #    st.empty()
+
+                    else:
+                        rate_tomato2.write("🍅 Audience: N/A")
+                        rate_tomato2_icon.markdown(empty_bucket, unsafe_allow_html=True)
+
+                    #rate.divider()  # Divider between ratings and table
+
+                else:
+                    rate_title.info("Select a movie from the table above to view ratings.")
+            else:
+                st.warning("No results found with ratings > 0.")
+
+        else:
+            rate_title.warning("Please perform a movie search first.")
+    else:
+        st.warning("Movie data is not available in session.")
+
+        
+
+    
+
 # Streamlit app
 def app():
-    #mcol1, mcol2 = st.columns([3, 1])
-    #with mcol1:
     st.title(f"Ratings App")
 
     col1, col2 = st.columns([3, 1])
@@ -843,11 +969,10 @@ def app():
     
     # Search button
     with col2:
-        #if mediatype == 'movie': type = "Movie"
-        #if mediatype == 'show': type = "Show"
         if st.button(f"Search {type}", use_container_width=True):
             if movie_title and api_key:
                 with st.spinner("Searching..."):
+                    st.toast(f"Searching for {movie_title}")
                     movie_data = search_movie(movie_title, api_key)
 
                     if movie_data:
@@ -856,8 +981,10 @@ def app():
                         st.session_state['movie_data'] = None
 
     # Display search results (if available)
-    display_results3()
-    
+    if table:
+        display_results2(type)
+    else:
+        display_results(type)
 
 if __name__ == "__main__":
     app()
