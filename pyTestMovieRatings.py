@@ -540,17 +540,20 @@ def display_results(type):
                             with colM2:
                                 if st.button(button_label, use_container_width=True):
                                     imdbid = movie_data["search"][i]["ids"]["imdbid"]
-                                    if imdbid:
-                                        with st.spinner("Searching..."):
-                                            ratings_imdb = get_ratings(imdbid, "imdb", api_key)   #trakt , imdb , tmdb , letterboxd , tomatoes , audience , metacritic , rogerebert , mal , score , score_average
-                                            
                                     tmdbid = movie_data["search"][i]["ids"]["tmdbid"]
+
+                                    # Fetch ratings and handle errors gracefully
+                                    if imdbid:
+                                        with st.spinner("Fetching IMDb Ratings..."):
+                                            st.toast("Fetching IMDb Ratings...")
+                                            ratings_imdb = get_ratings(imdbid, "imdb", api_key)
                                     if tmdbid:
-                                        with st.spinner("Searching..."):
+                                        with st.spinner("Fetching Rotten Tomatoes Critics Ratings..."):
+                                            st.toast("Fetching Rotten Tomatoes Critics Ratings...")
                                             ratings_tmdb = get_ratings(tmdbid, "tomatoes", api_key)
-                                            
-                                        with st.spinner("Searching..."):
-                                            ratings_tmdb2 = get_ratings(tmdbid, "audience", api_key)
+                                        with st.spinner("Fetching Rotten Tomatoes Audience Ratings..."):
+                                            st.toast("Fetching Rotten Tomatoes Audience Ratings...")
+                                            ratings_tmdb2 = get_ratings(tmdbid, "audience", api_key) 
                                             
                                     else:
                                         st.error("No id found")
