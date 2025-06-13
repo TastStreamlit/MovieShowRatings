@@ -537,7 +537,7 @@ def display_results(mtype):
                                 st.image(show_image(movie_data["search"][i]["ids"]["tmdbid"], rtype, 1))
                             
                             with colM2:
-                                if st.button(button_label, use_container_width=True):
+                                if st.button(button_label, use_container_width=True, key=i):
                                     # Fetch ratings and handle errors gracefully
                                     if imdbid:
                                         with st.spinner("Fetching IMDb Ratings..."):
