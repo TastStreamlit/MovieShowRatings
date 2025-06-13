@@ -569,8 +569,8 @@ def display_results(mtype):
                                 #st.write(data_dict)
 
                                 genres = data_dict.get("genres", [])
-                                budget = data_dict["budget"]
-                                revenue = data_dict["revenue"]
+                                budget = data_dict.get("budget", 0)
+                                revenue = data_dict.get("revenue", 0)
                                 if int(budget) == 0: 
                                     budget = "N/A"
                                 if int(revenue) == 0:
@@ -580,16 +580,17 @@ def display_results(mtype):
                                 else:
                                     profit = revenue - budget
 
-                                overview = data_dict["overview"]
-                                tagline = data_dict["tagline"]
-                                runtime = data_dict["runtime"]
+                                overview = data_dict.get("overview", "No description available")
+                                tagline = data_dict.get("tagline", "")
+                                runtime = data_dict.get("runtime", "?")
                                 
                                 st.write(overview)
                                 st.write(tagline)
                                 
-                                genre_names = [genre.get("name") for genre in genres]
-                                #st.pills("Genres", genre_names, disabled=True, label_visibility="collapsed")
-                                st.pills("Genres", genre_names, label_visibility="collapsed", key=tmdbid*1000)
+                                if genres:
+                                    genre_names = [genre.get("name") for genre in genres]
+                                    #st.pills("Genres", genre_names, disabled=True, label_visibility="collapsed")
+                                    st.pills("Genres", genre_names, label_visibility="collapsed", key=tmdbid*1000)
 
                                 moneyTableData = [
                                     {'Budget': budget, 'Revenue': revenue, 'Profit': profit}
@@ -625,7 +626,7 @@ def display_results(mtype):
                             colM1, colM2 = st.columns(2)
 
                             with colM1:
-                                if st.button(button_label, use_container_width=True):
+                                if st.button(button_label, use_container_width=True, key=i):
                                     # Fetch ratings and handle errors gracefully
                                     if imdbid:
                                         with st.spinner("Fetching IMDb Ratings..."):
@@ -655,7 +656,7 @@ def display_results(mtype):
                         if watchButtonAllowed:
                             watchbutton=False
                             if rtype == "movie":
-                                if st.button("Watch", key=tmdbid, use_container_width=True):
+                                if st.button("Watch", key=tmdbid*10000, use_container_width=True):
                                     st.toast("Fetching link")
 
                                     # HTML code for the iframe
@@ -671,14 +672,15 @@ def display_results(mtype):
                                     # Display the iframe
                                     st.markdown(iframe_html, unsafe_allow_html=True)
                             else:
-                                tvcol1, tvcol2, tvcol3 = st.columns(3)
+                                #tvcol1, tvcol2, tvcol3 = st.columns(3)
+                                tvcol1, tvcol2 = st.columns(2)
                                 with tvcol1:
                                     season = st.number_input("Season", key=tmdbid*10, min_value=1, value=1, step=1)
                                 with tvcol2:
                                     episode = st.number_input("Episode", key=tmdbid*100, min_value=1, value=1, step=1)
                                 
-                                with tvcol3:
-                                    watchbutton = st.button("WATCH", key=tmdbid, use_container_width=True)
+                                #with tvcol3:
+                                watchbutton = st.button("Watch", key=tmdbid*10000, use_container_width=True)
 
                                 if watchbutton:
                                     st.toast("Fetching link")
