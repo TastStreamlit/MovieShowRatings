@@ -563,64 +563,76 @@ def display_results(mtype):
                             
                                 url = f"https://api.themoviedb.org/3/{rtype}/{tmdbid}?language=en-US"
 
-                                response = requests.get(url, headers=headers)
-                                data_dict = response.json()
+                                try:
+                                    response = requests.get(url, headers=headers)
+                                    if response.status_code == 200:
+                                        data_dict = response.json()
+                                    else:
+                                        st.error(f"Error: {response.status_code}")
+                                        data_dict = None
+                                except Exception as e:
+                                    st.error(f"An error occurred: {e}")
+                                    return None
+                                #response = requests.get(url, headers=headers)
+
+
+                                #data_dict = response.json()
 
                                 #st.write(data_dict)
+                                if data_dict:
+                                    genres = data_dict.get("genres", [])
+                                    budget = data_dict.get("budget", 0)
+                                    revenue = data_dict.get("revenue", 0)
+                                    if int(budget) == 0: 
+                                        budget = "N/A"
+                                    if int(revenue) == 0:
+                                        revenue = "N/A"
+                                    if budget == "N/A" or revenue == "N/A":
+                                        profit = "N/A"
+                                    else:
+                                        profit = revenue - budget
 
-                                genres = data_dict.get("genres", [])
-                                budget = data_dict.get("budget", 0)
-                                revenue = data_dict.get("revenue", 0)
-                                if int(budget) == 0: 
-                                    budget = "N/A"
-                                if int(revenue) == 0:
-                                    revenue = "N/A"
-                                if budget == "N/A" or revenue == "N/A":
-                                    profit = "N/A"
-                                else:
-                                    profit = revenue - budget
+                                    overview = data_dict.get("overview", "No description available")
+                                    tagline = data_dict.get("tagline", "")
+                                    runtime = data_dict.get("runtime", "?")
+                                    
+                                    st.write(overview)
+                                    st.write(tagline)
+                                    
+                                    if genres:
+                                        genre_names = [genre.get("name") for genre in genres]
+                                        #st.pills("Genres", genre_names, disabled=True, label_visibility="collapsed")
+                                        st.pills("Genres", genre_names, label_visibility="collapsed", key=tmdbid*1000)
 
-                                overview = data_dict.get("overview", "No description available")
-                                tagline = data_dict.get("tagline", "")
-                                runtime = data_dict.get("runtime", "?")
-                                
-                                st.write(overview)
-                                st.write(tagline)
-                                
-                                if genres:
-                                    genre_names = [genre.get("name") for genre in genres]
-                                    #st.pills("Genres", genre_names, disabled=True, label_visibility="collapsed")
-                                    st.pills("Genres", genre_names, label_visibility="collapsed", key=tmdbid*1000)
+                                    moneyTableData = [
+                                        {'Budget': budget, 'Revenue': revenue, 'Profit': profit}
+                                    ]
+                                    moneydf = pd.DataFrame(moneyTableData)
+                                    
+                                    # Format the 'Budget', 'Revenue', and 'Profit' columns as currency
+                                    moneydf['Budget'] = moneydf['Budget'].apply(lambda x: f"${x:,.0f}" if isinstance(x, (int, float)) else x)
+                                    moneydf['Revenue'] = moneydf['Revenue'].apply(lambda x: f"${x:,.0f}" if isinstance(x, (int, float)) else x)
+                                    moneydf['Profit'] = moneydf['Profit'].apply(lambda x: f"${x:,.0f}" if isinstance(x, (int, float)) else x)
 
-                                moneyTableData = [
-                                    {'Budget': budget, 'Revenue': revenue, 'Profit': profit}
-                                ]
-                                moneydf = pd.DataFrame(moneyTableData)
-                                
-                                # Format the 'Budget', 'Revenue', and 'Profit' columns as currency
-                                moneydf['Budget'] = moneydf['Budget'].apply(lambda x: f"${x:,.0f}" if isinstance(x, (int, float)) else x)
-                                moneydf['Revenue'] = moneydf['Revenue'].apply(lambda x: f"${x:,.0f}" if isinstance(x, (int, float)) else x)
-                                moneydf['Profit'] = moneydf['Profit'].apply(lambda x: f"${x:,.0f}" if isinstance(x, (int, float)) else x)
+                                    tableData = [
+                                        {'Year': movie['year'], 'Runtime': runtime, 'Rating': movie['score'], 'Rating average': movie['score_average']}
+                                    ]
+                                    #######################################TEST OVER
+                                    #tableData = [
+                                    #    {'Year': movie['year'], 'Rating': movie['score'], 'Rating average': movie['score_average']}
+                                    #]
+                                    df = pd.DataFrame(tableData)
+                                    # Apply color only on Rating and Rating average columns
+                                    styled_df = df.style.map(color_rating, subset=['Rating', 'Rating average'])
+                                    # Format the 'Budget', 'Revenue', and 'Profit' columns as currency
+                                    df['Year'] = df['Year'].apply(lambda x: f"{x}")
+                                    df['Runtime'] = df['Runtime'].apply(lambda x: f"{x} min")
+                                    df['Rating'] = df['Rating'].apply(lambda x: f"{x}%")
+                                    df['Rating average'] = df['Rating average'].apply(lambda x: f"{x}%")
+                                    # Display with colors in Streamlit
+                                    st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
-                                tableData = [
-                                    {'Year': movie['year'], 'Runtime': runtime, 'Rating': movie['score'], 'Rating average': movie['score_average']}
-                                ]
-                                #######################################TEST OVER
-                                #tableData = [
-                                #    {'Year': movie['year'], 'Rating': movie['score'], 'Rating average': movie['score_average']}
-                                #]
-                                df = pd.DataFrame(tableData)
-                                # Apply color only on Rating and Rating average columns
-                                styled_df = df.style.map(color_rating, subset=['Rating', 'Rating average'])
-                                # Format the 'Budget', 'Revenue', and 'Profit' columns as currency
-                                df['Year'] = df['Year'].apply(lambda x: f"{x}")
-                                df['Runtime'] = df['Runtime'].apply(lambda x: f"{x} min")
-                                df['Rating'] = df['Rating'].apply(lambda x: f"{x}%")
-                                df['Rating average'] = df['Rating average'].apply(lambda x: f"{x}%")
-                                # Display with colors in Streamlit
-                                st.dataframe(styled_df, use_container_width=True, hide_index=True)
-
-                                st.dataframe(moneydf, use_container_width=True, hide_index=True)
+                                    st.dataframe(moneydf, use_container_width=True, hide_index=True)
 
                         else:
                             colM1, colM2 = st.columns(2)
